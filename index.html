@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple Website</title>
+    <title>Cool Deep Link App</title>
     <style>
         body {
             display: flex;
@@ -12,43 +12,335 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            font-family: Arial, sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: white;
         }
         .container {
             text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+            margin-bottom: 20px;
+        }
+        .container:hover {
+            transform: translateY(-5px);
         }
         button {
-            padding: 10px 20px;
-            font-size: 16px;
-            background-color: #4CAF50;
+            padding: 15px 30px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #00c6ff, #0072ff);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 50px;
             cursor: pointer;
-            margin: 10px;
+            margin: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3);
         }
         button:hover {
-            background-color: #45a049;
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 114, 255, 0.4);
+        }
+        button:active {
+            transform: scale(0.95);
+        }
+        button::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: width 0.6s ease, height 0.6s ease;
+        }
+        button:active::after {
+            width: 200px;
+            height: 200px;
         }
         label {
-            font-size: 18px;
-            margin: 10px;
+            font-size: 24px;
+            margin: 20px;
             display: block;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .title {
+            font-size: 32px;
+            margin-bottom: 30px;
+            background: linear-gradient(45deg, #00c6ff, #0072ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: bold;
+        }
+        #gameCanvas {
+            background: #fff;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            image-rendering: pixelated;
+        }
+        .game-container {
+            text-align: center;
+            margin-top: 20px;
+            position: relative;
+        }
+        .game-instructions {
+            color: #fff;
+            margin: 10px 0;
+            font-size: 16px;
+        }
+        .cloud {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            animation: float linear infinite;
+        }
+        @keyframes float {
+            from { transform: translateX(100%); }
+            to { transform: translateX(-100%); }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <label id="myLabel">Click the button!</label>
-        <button onclick="changeLabel()">Click me</button>
+        <h1 class="title">Deep Link Demo</h1>
+        <label id="myLabel">Click to open Mags App!</label>
+        <button onclick="changeLabel()">Open App</button>
     </div>
+
+    <div class="game-container">
+        <canvas id="gameCanvas" width="800" height="300"></canvas>
+        <p class="game-instructions">Press SPACE to jump! Avoid the obstacles!</p>
+    </div>
+
+    <audio id="jumpSound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU" preload="auto"></audio>
+    <audio id="hitSound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU" preload="auto"></audio>
+    <audio id="scoreSound" src="data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU" preload="auto"></audio>
 
     <script>
         function changeLabel() {
             const label = document.getElementById('myLabel');
             label.textContent = 'Opening app...';
+            label.style.animation = 'fadeIn 0.5s ease';
             window.location.href = 'mags://orderhistory';
         }
+
+        // Dino Game
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const dino = {
+            x: 50,
+            y: canvas.height - 60,
+            width: 50,
+            height: 50,
+            jumping: false,
+            jumpForce: 0,
+            gravity: 0.6
+        };
+
+        const obstacles = [];
+        let score = 0;
+        let gameSpeed = 5;
+        let gameOver = false;
+
+        function drawDino() {
+            ctx.fillStyle = '#333';
+            ctx.fillRect(dino.x, dino.y, dino.width, dino.height);
+        }
+
+        function createObstacle() {
+            return {
+                x: canvas.width,
+                y: canvas.height - 40,
+                width: 20,
+                height: 40
+            };
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = '#666';
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+        }
+
+        function checkCollision(dino, obstacle) {
+            return dino.x < obstacle.x + obstacle.width &&
+                   dino.x + dino.width > obstacle.x &&
+                   dino.y < obstacle.y + obstacle.height &&
+                   dino.y + dino.height > obstacle.y;
+        }
+
+        function drawScore() {
+            ctx.fillStyle = '#000';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${score}`, 20, 30);
+        }
+
+        function gameLoop() {
+            if (gameOver) {
+                ctx.fillStyle = '#000';
+                ctx.font = '40px Arial';
+                ctx.fillText('Game Over!', canvas.width/2 - 100, canvas.height/2);
+                ctx.font = '20px Arial';
+                ctx.fillText('Press SPACE to restart', canvas.width/2 - 100, canvas.height/2 + 40);
+                return;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Ground
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, canvas.height - 10, canvas.width, 2);
+
+            // Dino physics
+            if (dino.jumping) {
+                dino.y -= dino.jumpForce;
+                dino.jumpForce -= dino.gravity;
+                
+                if (dino.y >= canvas.height - 60) {
+                    dino.y = canvas.height - 60;
+                    dino.jumping = false;
+                }
+            }
+
+            // Obstacle generation
+            if (Math.random() < 0.02) {
+                obstacles.push(createObstacle());
+            }
+
+            // Move and remove obstacles
+            obstacles.forEach((obstacle, index) => {
+                obstacle.x -= gameSpeed;
+                if (obstacle.x + obstacle.width < 0) {
+                    obstacles.splice(index, 1);
+                    score++;
+                }
+                if (checkCollision(dino, obstacle)) {
+                    gameOver = true;
+                }
+            });
+
+            drawDino();
+            drawObstacles();
+            drawScore();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.code === 'Space') {
+                if (gameOver) {
+                    // Reset game
+                    gameOver = false;
+                    score = 0;
+                    obstacles.length = 0;
+                    dino.y = canvas.height - 60;
+                    dino.jumping = false;
+                } else if (!dino.jumping) {
+                    dino.jumping = true;
+                    dino.jumpForce = 15;
+                }
+            }
+        });
+
+        // Sound effects
+        const jumpSound = document.getElementById('jumpSound');
+        const hitSound = document.getElementById('hitSound');
+        const scoreSound = document.getElementById('scoreSound');
+
+        // Create simple sound effects
+        function createJumpSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            oscillator.stop(audioContext.currentTime + 0.3);
+        }
+
+        function createHitSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sawtooth';
+            oscillator.frequency.setValueAtTime(100, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        function createScoreSound() {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        // Visual effects
+        function createCloud() {
+            const cloud = document.createElement('div');
+            cloud.className = 'cloud';
+            cloud.style.width = Math.random() * 50 + 30 + 'px';
+            cloud.style.height = Math.random() * 30 + 20 + 'px';
+            cloud.style.top = Math.random() * 100 + 'px';
+            cloud.style.animationDuration = Math.random() * 20 + 10 + 's';
+            document.querySelector('.game-container').appendChild(cloud);
+            
+            setTimeout(() => {
+                cloud.remove();
+            }, 30000);
+        }
+
+        setInterval(createCloud, 3000);
+
+        gameLoop();
     </script>
 </body>
 </html> 
