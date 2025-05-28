@@ -143,7 +143,9 @@
             const label = document.getElementById('myLabel');
             label.textContent = 'Opening app...';
             label.style.animation = 'fadeIn 0.5s ease';
-            window.location.href = 'mags://order/complete';
+            setTimeout(function () {
+                location.href = "mags://order/complete";
+            }, 200); // Delay 200ms
         }
 
         // Dino Game
